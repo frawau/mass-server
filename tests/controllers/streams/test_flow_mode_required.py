@@ -20,6 +20,7 @@ def _controller() -> Any:
     """Return a streams controller with one gapless, non-flow HTTP player."""
     controller: Any = StreamsController.__new__(StreamsController)
     controller._base_url = "http://mass:8097"
+    controller._base_urls = {"mass": "http://mass:8097"}
     controller._flow_mode_owners = {}
     controller._boundary_mix_owners = {}
     controller.mass = mass = MagicMock()

@@ -343,7 +343,7 @@ async def _resolve_own_imageproxy_url(mass: MusicAssistant, url: str) -> tuple[s
     url_origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
     server_origins = {
         f"{p.scheme}://{p.netloc}"
-        for b in (mass.webserver.base_url, mass.streams.base_url)
+        for b in (mass.webserver.base_url, *mass.streams.base_urls)
         if (p := urllib.parse.urlparse(b)).netloc
     }
     if url_origin not in server_origins:

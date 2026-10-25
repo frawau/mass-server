@@ -27,6 +27,7 @@ from music_assistant.providers.sonos.const import (
     SOURCE_SPOTIFY,
 )
 from music_assistant.providers.sonos.player import SonosPlayer, _is_wakeable
+from tests.common import mock_stream_base_urls
 
 
 def _bind_player(mass: MusicAssistant | MagicMock) -> tuple[SonosPlayer, MagicMock]:
@@ -69,7 +70,7 @@ def _make_named_player(name: str) -> SonosPlayer:
     # the display name prefers the name set in the player config, which has none here
     player._config = MagicMock()
     player._config.name = None
-    mass.streams.base_url = "http://192.168.1.10:9097"
+    mock_stream_base_urls(mass.streams, "http://192.168.1.10:9097")
     return player
 
 

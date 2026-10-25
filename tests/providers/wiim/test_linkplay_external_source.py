@@ -12,7 +12,7 @@ from music_assistant.models.player import LinkedOutputProtocol
 from music_assistant.providers.dlna.player import DLNAPlayer
 from music_assistant.providers.wiim.grouping import NativeGroupRole
 from music_assistant.providers.wiim.linkplay_player import LinkPlayPlayer
-from tests.common import MockProvider, create_mock_config
+from tests.common import MockProvider, create_mock_config, mock_stream_base_urls
 
 SHELL_ID = "wiim_uuid:FF31F09E-2640-A6A5-F8D3-1316FF31F09E"
 DLNA_ID = "uuid:FF31F09E-2640-A6A5-F8D3-1316FF31F09E"
@@ -32,7 +32,7 @@ def _mock_mass() -> MagicMock:
     mass.get_providers = MagicMock(return_value=[])
     mass.get_providers_supporting_feature = MagicMock(return_value=[])
     mass.player_queues.get = MagicMock(return_value=None)
-    mass.streams.base_url = "http://192.168.1.2:8097"
+    mock_stream_base_urls(mass.streams, "http://192.168.1.2:8097")
     mass.players = PlayerController(mass)
     return mass
 

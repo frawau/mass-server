@@ -19,6 +19,7 @@ from music_assistant_models.player import PlayerMedia
 
 from music_assistant.constants import SILENCE_FILE
 from music_assistant.providers.chromecast.player import ChromecastPlayer
+from tests.common import mock_stream_base_urls
 
 COMMAND_URL = "http://mass:8097/command/session-1/queue-1/next.mp3"
 
@@ -37,6 +38,7 @@ def _fake_flow_player(*, cast_queue_items: list[Any] | None = None) -> Any:
     # Typed as Any because the collaborators below are read back as the mocks they are.
     fake = cast("Any", ChromecastPlayer.__new__(ChromecastPlayer))
     fake.mass = MagicMock()
+    mock_stream_base_urls(fake.mass.streams, "http://mass:8097")
     fake.mass.streams.get_command_url.return_value = COMMAND_URL
     fake.logger = MagicMock()
     fake._player_id = "cast-child-1"

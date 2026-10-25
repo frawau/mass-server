@@ -18,6 +18,7 @@ from music_assistant_models.player import PlayerMedia
 from music_assistant.providers.raumfeld.constants import GROUP_SETTLE_TIME
 from music_assistant.providers.raumfeld.player import RaumfeldPlayer
 from music_assistant.providers.raumfeld.provider import RaumfeldPlayerProvider
+from tests.common import mock_stream_base_urls
 
 _LOCATION = "http://192.168.1.42:54730/renderer.xml"
 _DEVICE_DESCRIPTION = (
@@ -343,7 +344,7 @@ def _playing_group(
     provider.host.async_get_transport_info = AsyncMock(side_effect=transport)
     provider.host.async_get_position_info = AsyncMock(side_effect=position)
     mass = cast("MagicMock", provider.mass)
-    mass.streams.base_url = _BASE_URL
+    mock_stream_base_urls(mass.streams, _BASE_URL)
     queue = MagicMock(queue_id=leader.player_id, state=PlaybackState.PLAYING)
     mass.player_queues.get_active_queue.return_value = queue
     return mass

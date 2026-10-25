@@ -448,13 +448,8 @@ class PlaybackTrackerMixin(_PlayerQueuesBase):
             return None
         # try to extract the item id from a mass stream url
         # URL format: {base_url}/{mode}/{session_id}/{queue_id}/{queue_item_id}/{player_id}.{fmt}
-        base_url = self.mass.streams.base_url
-        if (
-            protocol_player.current_media.uri
-            and base_url
-            and protocol_player.current_media.uri.startswith(base_url)
-        ):
-            path_parts = protocol_player.current_media.uri[len(base_url) :].strip("/").split("/")
+        if stream_path := self.mass.streams.get_stream_url_path(protocol_player.current_media.uri):
+            path_parts = stream_path.strip("/").split("/")
             # the path holds mode, session_id, queue_id, queue_item_id and player_id.fmt
             if len(path_parts) >= 5:
                 current_item_id = path_parts[3]
@@ -475,9 +470,8 @@ class PlaybackTrackerMixin(_PlayerQueuesBase):
         if uri.startswith("mass:"):
             # the sonos container id: mass:{queue_id}[:{queue_item_id}]
             candidates.append(uri.split(":")[1])
-        base_url = self.mass.streams.base_url
-        if base_url and uri.startswith(base_url):
-            path_parts = uri[len(base_url) :].strip("/").split("/")
+        if stream_path := self.mass.streams.get_stream_url_path(uri):
+            path_parts = stream_path.strip("/").split("/")
             # the path holds mode, session_id, queue_id, queue_item_id and player_id.fmt
             if len(path_parts) >= 5:
                 candidates.append(path_parts[2])

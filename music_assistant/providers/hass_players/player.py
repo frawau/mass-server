@@ -464,7 +464,7 @@ class HomeAssistantPlayer(Player):
         # play command we issued is what tells the two sources apart. Without either
         # signal the source stays as it was.
         media_content_id = self._hass_attributes.get("media_content_id", "")
-        if media_content_id.startswith(self.mass.streams.base_url):
+        if self.mass.streams.is_stream_url(media_content_id):
             self._reports_stream_url = True
             is_ma_playback = True
         else:

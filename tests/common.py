@@ -7,6 +7,7 @@ import logging
 import pathlib
 import weakref
 from collections.abc import AsyncGenerator, Iterator, Mapping
+from functools import partial
 from types import CoroutineType, MethodType
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -24,6 +25,7 @@ from music_assistant_models.player import DeviceInfo
 from music_assistant.constants import CONF_PROVIDERS
 from music_assistant.controllers.config import ConfigController
 from music_assistant.controllers.players import PlayerController
+from music_assistant.controllers.streams.controller import StreamsController
 from music_assistant.controllers.tasks.constants import TASK_UPDATE_TIMER_ID
 from music_assistant.controllers.webserver import controller as webserver_controller
 from music_assistant.mass import MusicAssistant
@@ -477,3 +479,22 @@ class MockPlayer(Player):
 
 class MockMass:
     """Type hint for mocked MusicAssistant instance."""
+
+
+def mock_stream_base_urls(streams: MagicMock, *base_urls: str) -> None:
+    """
+    Make a mocked streams controller publish the given base URLs, the first as default.
+
+    Wires the real URL recognition helpers onto the mock, so code under test that asks
+    whether a URL is this server's gets the same answer the controller would give.
+
+    :param streams: The mocked StreamsController.
+    :param base_urls: Base URLs the streamserver publishes, default first.
+    """
+    streams.base_url = streams._base_url = base_urls[0]
+    streams.base_urls = base_urls
+    streams._base_urls = {str(index): base_url for index, base_url in enumerate(base_urls)}
+    streams.get_stream_url_path = partial(StreamsController.get_stream_url_path, streams)
+    streams.is_stream_url = partial(StreamsController.is_stream_url, streams)
+    streams.get_player_base_url = partial(StreamsController.get_player_base_url, streams)
+    streams.localize_url = partial(StreamsController.localize_url, streams)

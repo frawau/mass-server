@@ -1208,8 +1208,8 @@ class SonosPlayer(Player):
             # the coordinator plays for the whole group and reports for it
             return
         error = cast("PlaybackError", event.data)
-        stream_server = urlparse(self.mass.streams.base_url).netloc
-        if error.get("httpStatus") == 404 and error.get("serviceName") == stream_server:
+        stream_servers = {urlparse(base_url).netloc for base_url in self.mass.streams.base_urls}
+        if error.get("httpStatus") == 404 and error.get("serviceName") in stream_servers:
             # our own stream server refused the item: a track the queue moved past or no
             # longer holds. The speaker tries each track it cached before reading the
             # queue again, so these come in bursts

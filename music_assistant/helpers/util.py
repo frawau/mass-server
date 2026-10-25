@@ -1289,28 +1289,24 @@ async def get_source_ip_for_target(target_ip: str) -> str:
 
     :param target_ip: IP address of the device the traffic is meant for.
     """
+    return await asyncio.to_thread(_routing_lookup, target_ip)
 
-    def _routing_lookup() -> str:
-        try:
-            is_ipv6_target = ip_address(target_ip).version == 6
-        except ValueError:
-            is_ipv6_target = False
-        route_family = socket.AF_INET6 if is_ipv6_target else socket.AF_INET
-        route_target: tuple[str, int] | tuple[str, int, int, int] = (
-            (target_ip, 80, 0, 0) if is_ipv6_target else (target_ip, 80)
-        )
-        with socket.socket(route_family, socket.SOCK_DGRAM) as _sock:
-            try:
-                _sock.settimeout(1.0)
-                _sock.connect(route_target)
-                routed_ip = str(_sock.getsockname()[0])
-                if routed_ip and routed_ip not in WILDCARD_BIND_IPS:
-                    return routed_ip
-            except OSError:
-                pass
+
+def route_source_ip(target_ip: str) -> str:
+    """
+    Return the local interface address the routing table would egress to ``target_ip`` from.
+
+    Only asks the kernel for a route and sends nothing, so it is safe to call from the
+    event loop. Empty when ``target_ip`` is not an IP address or has no route.
+
+    :param target_ip: IP address of the device the traffic is meant for.
+    """
+    try:
+        ip_address(target_ip)
+    except ValueError:
+        # a hostname would make the lookup resolve it, which blocks
         return ""
-
-    return await asyncio.to_thread(_routing_lookup)
+    return _routing_lookup(target_ip)
 
 
 async def get_ip_pton(ip_string: str) -> bytes:
@@ -2311,3 +2307,25 @@ def _canonical_key_part(value: Any) -> Any:
         # full item and an ItemMapping for that same item are not handled the same.
         return (type(value).__name__, uri)
     return value
+
+
+def _routing_lookup(target_ip: str) -> str:
+    """Return the local address the routing table picks to reach ``target_ip`` (blocking)."""
+    try:
+        is_ipv6_target = ip_address(target_ip).version == 6
+    except ValueError:
+        is_ipv6_target = False
+    route_family = socket.AF_INET6 if is_ipv6_target else socket.AF_INET
+    route_target: tuple[str, int] | tuple[str, int, int, int] = (
+        (target_ip, 80, 0, 0) if is_ipv6_target else (target_ip, 80)
+    )
+    with socket.socket(route_family, socket.SOCK_DGRAM) as _sock:
+        try:
+            _sock.settimeout(1.0)
+            _sock.connect(route_target)
+            routed_ip = str(_sock.getsockname()[0])
+            if routed_ip and routed_ip not in WILDCARD_BIND_IPS:
+                return routed_ip
+        except OSError:
+            pass
+    return ""

@@ -17,14 +17,14 @@ import pytest
 from async_upnp_client.profiles.dlna import TransportState
 
 from music_assistant.providers.dlna.player import DLNAPlayer
-from tests.common import MockProvider
+from tests.common import MockProvider, mock_stream_base_urls
 
 
 @pytest.mark.asyncio
 async def test_set_dynamic_attributes_survives_malformed_device_metadata() -> None:
     """Malformed DIDL metadata from the device must not crash the player update."""
     provider = MockProvider("dlna", instance_id="dlna_test")
-    provider.mass.streams.base_url = "http://192.168.1.2:8097"
+    mock_stream_base_urls(provider.mass.streams, "http://192.168.1.2:8097")
 
     # subclass so the PropertyMocks stay local and don't leak into MagicMock itself
     class MockDevice(MagicMock):
@@ -66,7 +66,7 @@ async def test_set_dynamic_attributes_survives_malformed_device_metadata() -> No
 async def test_poll_survives_malformed_device_metadata() -> None:
     """A ParseError raised while polling the device must not crash the poll."""
     provider = MockProvider("dlna", instance_id="dlna_test")
-    provider.mass.streams.base_url = "http://192.168.1.2:8097"
+    mock_stream_base_urls(provider.mass.streams, "http://192.168.1.2:8097")
 
     device = MagicMock()
     device.profile_device.available = True
@@ -91,7 +91,7 @@ async def test_poll_survives_malformed_device_metadata() -> None:
 async def test_set_dynamic_attributes_propagates_valid_device_metadata() -> None:
     """Valid device metadata must be propagated into the player's current media."""
     provider = MockProvider("dlna", instance_id="dlna_test")
-    provider.mass.streams.base_url = "http://192.168.1.2:8097"
+    mock_stream_base_urls(provider.mass.streams, "http://192.168.1.2:8097")
 
     device = MagicMock()
     device.profile_device.available = True

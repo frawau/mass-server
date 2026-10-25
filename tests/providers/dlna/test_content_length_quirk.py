@@ -10,7 +10,7 @@ from aiohttp.http_exceptions import ContentLengthError
 from async_upnp_client.exceptions import UpnpCommunicationError
 
 from music_assistant.providers.dlna.player import DLNAPlayer
-from tests.common import MockProvider
+from tests.common import MockProvider, mock_stream_base_urls
 
 
 def _content_length_off_by_one_error() -> UpnpCommunicationError:
@@ -35,7 +35,7 @@ def _content_length_off_by_one_error() -> UpnpCommunicationError:
 async def test_poll_survives_content_length_off_by_one() -> None:
     """A firmware Content-Length quirk on GetMediaInfo must not mark the device unavailable."""
     provider = MockProvider("dlna", instance_id="dlna_test")
-    provider.mass.streams.base_url = "http://192.168.1.2:8097"
+    mock_stream_base_urls(provider.mass.streams, "http://192.168.1.2:8097")
 
     device = MagicMock()
     device.profile_device.available = True

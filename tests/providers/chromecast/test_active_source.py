@@ -11,7 +11,7 @@ from music_assistant_models.player import PlayerSource
 
 from music_assistant.providers.chromecast.constants import APP_MEDIA_RECEIVER
 from music_assistant.providers.chromecast.player import ChromecastPlayer
-from tests.common import MockPlayer, MockProvider
+from tests.common import MockPlayer, MockProvider, mock_stream_base_urls
 from tests.providers.chromecast.test_media_status_updates import _fake_player, _media_status
 
 STREAM_BASE_URL = "http://192.168.1.10:8097"
@@ -21,7 +21,7 @@ PLAYER_ID = "cast_group_1"
 def _fake_media_receiver_player() -> Any:
     """Build a Cast group running the Default Media Receiver, with no source reported yet."""
     fake = _fake_player(player_type=PlayerType.GROUP, powered=True)
-    fake.mass.streams.base_url = STREAM_BASE_URL
+    mock_stream_base_urls(fake.mass.streams, STREAM_BASE_URL)
     fake.cc = MagicMock(app_id=APP_MEDIA_RECEIVER, app_display_name="Default Media Receiver")
     fake._attr_active_source = None
     fake._attr_source_list = []

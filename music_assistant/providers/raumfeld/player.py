@@ -1082,7 +1082,7 @@ class RaumfeldPlayer(Player):
                 self._attr_active_source = SOURCE_LINE_IN
                 self.set_current_media(uri=device_uri, clear_all=True, title="Line-in")
             return
-        if not device_uri or device_uri.startswith(self.mass.streams.base_url):
+        if not device_uri or self.mass.streams.is_stream_url(device_uri):
             # nothing loaded, or our own stream (owned by MA's queue controller, which holds
             # the queue_item_id progress tracking needs)
             self._clear_external()
@@ -1470,9 +1470,8 @@ class RaumfeldPlayer(Player):
         if (position := await self._read_position(host, zone)) is None:
             return None
         # a queue's stream is served at <base url>/flow|single/<session>/<queue id>/...
-        base_url = self.mass.streams.base_url
-        uri = position.get("TrackURI") or ""
-        parts = uri.removeprefix(f"{base_url}/").split("/") if uri.startswith(base_url) else []
+        stream_path = self.mass.streams.get_stream_url_path(position.get("TrackURI"))
+        parts = stream_path.removeprefix("/").split("/") if stream_path else []
         return len(parts) > 2 and parts[0] in ("flow", "single") and parts[2] == self.player_id
 
     async def _zone_plays(self, host: hassfeld.RaumfeldHost, zone: list[str]) -> bool | None:

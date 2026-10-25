@@ -26,7 +26,7 @@ from music_assistant.providers.raumfeld.player import (
     _map_transport_state,
     _near_track_end,
 )
-from tests.common import MockProvider
+from tests.common import MockProvider, mock_stream_base_urls
 
 if TYPE_CHECKING:
     import hassfeld
@@ -48,7 +48,7 @@ def _flow_player() -> RaumfeldPlayer:
     # no sample rate setting: the room plays the safe default
     player._config = MagicMock(get_value=MagicMock(return_value=None))
     mass = MagicMock()
-    mass.streams.base_url = BASE_URL
+    mock_stream_base_urls(mass.streams, BASE_URL)
     player.mass = mass
     return player
 
@@ -1088,7 +1088,7 @@ def _zone_player() -> tuple[RaumfeldPlayer, AsyncMock]:
     player._player_id = "raumfeld_bar"
     player._attr_playback_state = PlaybackState.IDLE
     mass = MagicMock()
-    mass.streams.base_url = BASE_URL
+    mock_stream_base_urls(mass.streams, BASE_URL)
     mass.streams.resolve_stream_url = AsyncMock(return_value=f"{BASE_URL}/flow/x.flac")
     player.mass = mass
     action = AsyncMock()

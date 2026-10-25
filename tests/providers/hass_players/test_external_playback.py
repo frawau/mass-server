@@ -11,6 +11,7 @@ from music_assistant_models.player import PlayerMedia
 
 from music_assistant.constants import ATTR_ANNOUNCEMENT_IN_PROGRESS
 from music_assistant.providers.hass_players.player import HomeAssistantPlayer
+from tests.common import mock_stream_base_urls
 
 BASE_URL = "http://10.0.0.5:8097"
 PLAYER_ID = "media_player.bedroom"
@@ -21,7 +22,7 @@ def _make_player() -> HomeAssistantPlayer:
     player = HomeAssistantPlayer.__new__(HomeAssistantPlayer)
     mass = MagicMock()
     mass.closing = False
-    mass.streams.base_url = BASE_URL
+    mock_stream_base_urls(mass.streams, BASE_URL)
     mass.streams.resolve_stream_url = AsyncMock(return_value=f"{BASE_URL}/flow/s1/q1/i1/x.mp3")
     player.mass = mass
     player.logger = logging.getLogger("test.hass_players.player")

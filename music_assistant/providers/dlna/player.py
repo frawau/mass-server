@@ -198,7 +198,7 @@ class DLNAPlayer(Player):
 
         self._attr_source_list = []
         # Let player controller determine active source, only override for known external sources
-        if _device_uri and _device_uri.startswith(self.mass.streams.base_url):
+        if self.mass.streams.is_stream_url(_device_uri):
             # MA stream - let controller determine source
             self._attr_active_source = None
         elif "spotify" in _device_uri:

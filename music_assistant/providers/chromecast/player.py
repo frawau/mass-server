@@ -391,7 +391,11 @@ class ChromecastPlayer(Player):
             title = current_media.title or "Music Assistant"
             artist = current_media.artist or ""
             album = current_media.album or ""
-            image_url = current_media.image_url or MASS_LOGO_ONLINE
+            image_url = (
+                self.mass.streams.localize_url(current_media.image_url, self.player_id)
+                if current_media.image_url
+                else MASS_LOGO_ONLINE
+            )
             flow_meta_checksum = f"{current_media.uri}-{album}-{artist}-{title}-{image_url}"
             if self.flow_meta_checksum != flow_meta_checksum:
                 # only update if something changed
@@ -417,6 +421,7 @@ class ChromecastPlayer(Player):
             if len(getattr(media_controller.status, "items", [])) < 2 and (
                 cmd_next_url := self.mass.streams.get_command_url(self.player_id, "next")
             ):
+                cmd_next_url = self.mass.streams.localize_url(cmd_next_url, self.player_id)
                 # In flow mode, all queue tracks are sent to the player as continuous stream.
                 # add a special 'command' item to the queue
                 # this allows for on-player next buttons/commands to still work
@@ -925,13 +930,18 @@ class ChromecastPlayer(Player):
         # Always use LIVE stream type because MA streams are real-time encoded by FFmpeg,
         # so they are not seekable and don't have a known content length.
         stream_type = STREAM_TYPE_LIVE
+        image_url = (
+            self.mass.streams.localize_url(media.image_url, self.player_id)
+            if media.image_url
+            else None
+        )
         metadata = {
             "metadataType": 3,
             "albumName": media.album or "",
             "songName": media.title or "",
             "artist": media.artist or "",
             "title": media.title or "",
-            "images": [{"url": media.image_url}] if media.image_url else None,
+            "images": [{"url": image_url}] if image_url else None,
         }
         file_ext = stream_url.split("?", maxsplit=1)[0].rsplit(".", maxsplit=1)[-1].lower()
         return {
@@ -991,4 +1001,4 @@ class ChromecastPlayer(Player):
             return False
         # other apps cast through the Default Media Receiver too, so only our own stream
         # (or nothing loaded yet, right after we launched it) makes the session ours
-        return not status.content_id or status.content_id.startswith(self.mass.streams.base_url)
+        return not status.content_id or self.mass.streams.is_stream_url(status.content_id)

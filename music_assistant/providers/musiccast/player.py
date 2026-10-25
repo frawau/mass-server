@@ -347,7 +347,10 @@ class MusicCastPlayer(Player):
                 if _player_current_url is not None:
                     controlled_by_mass = (
                         self.player_id in _player_current_url
-                        and self.mass.streams.base_url in _player_current_url
+                        and any(
+                            base_url in _player_current_url
+                            for base_url in self.mass.streams.base_urls
+                        )
                         and self.zone_device.source_id == "server"
                     )
 

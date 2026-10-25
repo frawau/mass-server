@@ -30,6 +30,7 @@ from music_assistant.helpers.util import (
     is_port_in_use,
     join_task,
     load_provider_module,
+    route_source_ip,
     sanitize_http_header_value,
     select_free_port,
     try_parse_duration,
@@ -162,6 +163,23 @@ class TestGetSourceIpForTarget:
             sock.connect.side_effect = OSError("no route to host")
             result = await get_source_ip_for_target("10.10.20.31")
         assert result == ""
+
+
+class TestRouteSourceIp:
+    """route_source_ip is the event-loop safe form of the routing lookup."""
+
+    def test_returns_routing_lookup_result(self) -> None:
+        """The address the kernel picks for the target is handed back as-is."""
+        with patch("music_assistant.helpers.util.socket.socket") as mock_socket:
+            sock = mock_socket.return_value.__enter__.return_value
+            sock.getsockname.return_value = ("192.168.128.10", 0)
+            assert route_source_ip("192.168.128.50") == "192.168.128.10"
+
+    def test_hostname_is_not_resolved(self) -> None:
+        """A hostname is refused rather than resolved, which would block the loop."""
+        with patch("music_assistant.helpers.util.socket.socket") as mock_socket:
+            assert route_source_ip("speaker.local") == ""
+        mock_socket.assert_not_called()
 
 
 class TestSelectFreePort:

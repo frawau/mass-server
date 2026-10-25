@@ -28,6 +28,7 @@ from music_assistant_models.enums import (
     ConfigEntryType,
     ContentType,
     CrossfadeMode,
+    IdentifierType,
     MediaType,
     PlayerFeature,
     ProviderType,
@@ -133,6 +134,7 @@ from music_assistant.helpers.util import (
     get_ip_addresses,
     get_publish_ip_candidates,
     get_source_ip_for_target,
+    route_source_ip,
     sanitize_http_header_value,
 )
 from music_assistant.helpers.webserver import Webserver, redact_sensitive_headers
@@ -272,6 +274,8 @@ class StreamsController(CoreController):
         # every address players may reach this host on, best candidate first; publish_ip is
         # the first of them and the network fingerprint watches the whole list for changes
         self._publish_addresses: list[str] = []
+        # base URL per publish address, so a URL handed out on any of them is recognised
+        self._base_urls: dict[str, str] = {}
         # the network as it was at the previous setup, to spot a runtime change
         self._network_fingerprint: tuple[str, str, int, tuple[str, ...]] | None = None
         self.audio = StreamsAudio(mass)
@@ -324,6 +328,79 @@ class StreamsController(CoreController):
     def bind_ip(self) -> str:
         """Return the IP address this streamserver is bound to."""
         return self._bind_ip
+
+    @property
+    def base_urls(self) -> tuple[str, ...]:
+        """Return the base URL of every address this streamserver publishes, default first."""
+        return tuple(self._base_urls.values())
+
+    def get_base_url(self, target_ip: str | None = None) -> str:
+        """
+        Return the base URL the device at ``target_ip`` should fetch audio from.
+
+        On a host with more than one network this is the address of the interface the
+        host reaches that device on, not the primary one. A configured publish IP or a
+        specific bind IP always wins, and so does ``base_url`` when the device is
+        reached through the primary interface or cannot be routed to at all.
+
+        :param target_ip: IP address of the device that will fetch the URL. Omit it for
+            a URL that is not meant for one specific device.
+        """
+        if not target_ip or len(self._base_urls) < 2:
+            return self._base_url
+        return self._base_urls.get(route_source_ip(target_ip), self._base_url)
+
+    def get_player_base_url(self, player_id: str | None) -> str:
+        """
+        Return the base URL the given player should fetch audio from.
+
+        Falls back to ``base_url`` for a player that does not report an IP address,
+        such as a group player.
+
+        :param player_id: The (protocol) player that will fetch the URL.
+        """
+        if len(self._base_urls) < 2:
+            return self._base_url
+        return self.get_base_url(self._get_player_ip(player_id))
+
+    def get_stream_url_path(self, url: str | None) -> str | None:
+        """
+        Return the path of a URL served by this streamserver, or None for any other URL.
+
+        A URL counts as ours on every address this host publishes, not only on
+        ``base_url``: players on another network were handed another address.
+
+        :param url: The URL to inspect, e.g. the one a player reports it is playing.
+        """
+        if not url:
+            return None
+        for base_url in self._base_urls.values():
+            if url == base_url:
+                return "/"
+            if url.startswith((f"{base_url}/", f"{base_url}?")):
+                return url[len(base_url) :]
+        return None
+
+    def is_stream_url(self, url: str | None) -> bool:
+        """
+        Return whether the URL is served by this streamserver, on any address it publishes.
+
+        :param url: The URL to inspect, e.g. the one a player reports it is playing.
+        """
+        return self.get_stream_url_path(url) is not None
+
+    def localize_url(self, url: str, player_id: str | None) -> str:
+        """
+        Return a URL of this streamserver rewritten to the address the player reaches.
+
+        Any other URL is returned unchanged.
+
+        :param url: A URL that may have been built on ``base_url``.
+        :param player_id: The (protocol) player that will fetch the URL.
+        """
+        if (path := self.get_stream_url_path(url)) is None:
+            return url
+        return f"{self.get_player_base_url(player_id)}{path}"
 
     @api_command("streams/info", required_scope=Scope.CONFIG_CORE_READ)
     def get_streamserver_info(self) -> StreamServerInfo:
@@ -712,7 +789,9 @@ class StreamsController(CoreController):
         :return: The resolved stream URL as a string.
         """
         if media.media_type in (MediaType.ANNOUNCEMENT, MediaType.FLOW_STREAM):
-            return media.uri
+            # built before the player was known, so only its address can be fixed up
+            return self.localize_url(media.uri, player_id)
+        base_url = self.get_player_base_url(player_id)
         protocol_player = self.mass.players.get_player(player_id)
         conf_output_codec = cast(
             "str",
@@ -741,10 +820,7 @@ class StreamsController(CoreController):
             # a source playing on a player, rather than an item in a queue
             if not media.source_id or not media.queue_session_id:
                 raise InvalidDataError("Can not resolve stream URL: Invalid PlayerMedia data")
-            return (
-                f"{self.base_url}/source/{media.queue_session_id}"
-                f"/{media.source_id}/{player_id}.{fmt}"
-            )
+            return f"{base_url}/source/{media.queue_session_id}/{media.source_id}/{player_id}.{fmt}"
         session_id = media.queue_session_id
         queue_item_id = media.queue_item_id
         if not session_id or not queue_item_id:
@@ -776,9 +852,7 @@ class StreamsController(CoreController):
             and media.media_type not in (MediaType.RADIO, MediaType.AUDIO_SOURCE)
         )
         base_path = "flow" if flow_mode else "single"
-        return (
-            f"{self.base_url}/{base_path}/{session_id}/{queue_id}/{queue_item_id}/{player_id}.{fmt}"
-        )
+        return f"{base_url}/{base_path}/{session_id}/{queue_id}/{queue_item_id}/{player_id}.{fmt}"
 
     def close_superseded_item_streams(self, queue_id: str, current_session_id: str | None) -> None:
         """
@@ -2690,9 +2764,19 @@ class StreamsController(CoreController):
         self._publish_addresses = _get_publish_addresses(
             bind_ip, self._configured_publish_ip, publish_candidates
         )
-        # the single address players are handed, taken from the top of the ranked list
+        # the address players are handed by default, taken from the top of the ranked list
         self.publish_ip = self._publish_addresses[0]
-        self._base_url = f"http://{format_ip_for_url(self.publish_ip)}:{self.publish_port}"
+        self._base_urls = {
+            address: f"http://{format_ip_for_url(address)}:{self.publish_port}"
+            for address in self._publish_addresses
+        }
+        self._base_url = self._base_urls[self.publish_ip]
+
+    def _get_player_ip(self, player_id: str | None) -> str | None:
+        """Return the IP address the given player reports, if any."""
+        if not player_id or not (player := self.mass.players.get_player(player_id)):
+            return None
+        return player.device_info.identifiers.get(IdentifierType.IP_ADDRESS)
 
     async def _handle_info_request(self, request: web.Request) -> web.Response:
         """Answer a reachability probe with this server's id."""

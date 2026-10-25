@@ -15,7 +15,7 @@ from async_upnp_client.profiles.dlna import TransportState
 from music_assistant_models.enums import PlaybackState, PlayerFeature
 
 from music_assistant.providers.dlna.player import DLNAPlayer
-from tests.common import MockProvider
+from tests.common import MockProvider, mock_stream_base_urls
 
 REPORTED_AT = datetime(2026, 8, 7, 12, 0, 0, tzinfo=UTC)
 STALE_POSITION = 120.0
@@ -54,7 +54,7 @@ def _player(device: MagicMock) -> DLNAPlayer:
     :param device: The mocked device to attach to the player.
     """
     provider = MockProvider("dlna", instance_id="dlna_test")
-    provider.mass.streams.base_url = "http://192.168.1.2:8097"
+    mock_stream_base_urls(provider.mass.streams, "http://192.168.1.2:8097")
 
     player = DLNAPlayer(
         provider,  # type: ignore[arg-type]

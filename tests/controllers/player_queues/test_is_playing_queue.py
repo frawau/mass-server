@@ -11,6 +11,7 @@ from music_assistant_models.queue_item import QueueItem
 
 from music_assistant.controllers.player_queues import PlayerQueuesController
 from music_assistant.controllers.player_queues.state import PlayerQueueData
+from tests.common import mock_stream_base_urls
 
 BASE_URL = "http://ma.local:8097"
 
@@ -20,7 +21,7 @@ def _controller() -> PlayerQueuesController:
     ctrl = PlayerQueuesController.__new__(PlayerQueuesController)
     ctrl.signal_update = Mock()  # type: ignore[method-assign]
     ctrl.mass = MagicMock()
-    ctrl.mass.streams.base_url = BASE_URL
+    mock_stream_base_urls(ctrl.mass.streams, BASE_URL)
     ctrl._queue_data = {}
     for queue_id in ("q1", "q2"):
         queue = PlayerQueue(
